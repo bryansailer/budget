@@ -72,19 +72,59 @@
             font-size: 1.2em; 
             color: #3c4043;
         }
+
+        .nav-btn {
+            display: inline-block;
+            background-color: #1a73e8;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            transition: background-color 0.3s;
+        }
+        .nav-btn:hover {
+            background-color: #1557b0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <a href="/tracker" class="nav-btn">← Expense Tracker</a>
+            <a href="/settings" class="nav-btn" style="background-color: #607d8b;">⚙️ Configure Sliders</a>
+        </div>
         <div class="header-panel">
             <h2>Monthly Surplus Available</h2>
             <div class="surplus-amount" id="surplusDisplay">$0</div>
             <div class="income-expense">
-                <div>Income: <strong>$<span id="incomeDisplay">{{ income }}</span></strong></div>
+                <div>Income: <strong>$<span id="incomeDisplay">0</span></strong></div>
                 <div>Total Expenses: <strong>$<span id="expenseDisplay">0</span></strong></div>
+                <div>Yearly Investments: <strong>$<span id="investmentDisplay">0</span></strong></div>
             </div>
         </div>
-
+        <!-- Income Sliders -->
+        {% for income in income_data %}
+        <div class="slider-row">
+            <div class="slider-label">{{ income.label }}</div>
+            <input type="range" class="slider-input income-slider {% if income.is_biweekly %}is-biweekly{% endif %}" 
+               id="{{ income.id }}" min="0" max="{{ income.max }}" step="1" value="{{ income.value }}"
+               oninput="updateValue(this)">
+            <div class="slider-value">$<span id="val_{{ income.id }}">{{ income.value }}</span></div>
+        </div>
+        {% endfor %}
+        <!-- Investment Sliders -->
+        {% for investment in investment_data %}
+        <div class="slider-row">
+            <div class="slider-label">{{ investment.label }}</div>
+            <input type="range" class="slider-input investment-slider" 
+                   id="{{ investment.id }}" min="0" max="{{ investment.max }}" step="1" value="{{ investment.value }}"
+                   oninput="updateValue(this)">
+            <div class="slider-value">$<span id="val_{{ investment.id }}">{{ investment.value }}</span></div>
+        </div>
+        {% endfor %}
+        <!-- Budget Category Sliders -->
         {% for category in budget_data %}
         <div class="category-group">
             <div class="category-header" style="color: {{ category.color }};">
@@ -104,33 +144,62 @@
     </div>
 
     <script>
-        // Grab the static income value passed from Python
-        const totalIncome = parseFloat(document.getElementById('incomeDisplay').innerText);
-        
-        // Triggers every time a slider is moved
+        // Triggers every time ANY slider (income, investment, or expense) is moved
         function updateValue(slider) {
-            document.getElementById('val_' + slider.id).innerText = slider.value;
+            // Update the text display next to the slider
+            document.getElementById('val_' + slider.id).innerText = parseFloat(slider.value).toFixed(2);
             calculateTotals();
         }
 
-        // recalculates the overall math
         function calculateTotals() {
-            const sliders = document.querySelectorAll('.expense-slider');
-            let totalExpenses = 0;
+            // 1. Calculate Total Dynamic Income
+            const incomeSliders = document.querySelectorAll('.income-slider');
+            let currentTotalIncome = 0;
             
-            sliders.forEach(slider => {
-                totalExpenses += parseFloat(slider.value);
+            incomeSliders.forEach(slider => {
+                let sliderValue = parseFloat(slider.value);
+                
+                // Dynamically apply biweekly math to ANY slider flagged in the database
+                if (slider.classList.contains('is-biweekly')) {
+                sliderValue = sliderValue * (26 / 12);
+            }
+                
+                currentTotalIncome += sliderValue;
             });
 
-            const surplus = totalIncome - totalExpenses;
+            // 2. Calculate Total Investments (Monthly)
+            const investmentSliders = document.querySelectorAll('.investment-slider');
+            let currentTotalInvestments = 0;
             
-            // Update the DOM
-            document.getElementById('expenseDisplay').innerText = totalExpenses.toLocaleString();
+            investmentSliders.forEach(slider => {
+                currentTotalInvestments += parseFloat(slider.value);
+            });
+
+            // Calculate Yearly Investments for the display
+            const yearlyInvestments = currentTotalInvestments * 12;
+
+            // 3. Calculate Total Dynamic Expenses
+            const expenseSliders = document.querySelectorAll('.expense-slider');
+            let currentTotalExpenses = 0;
+            
+            expenseSliders.forEach(slider => {
+                currentTotalExpenses += parseFloat(slider.value);
+            });
+
+            // 4. Calculate the New Surplus (Monthly Income minus Monthly Expenses and Monthly Investments)
+            const surplus = currentTotalIncome - currentTotalExpenses - currentTotalInvestments;
+            
+            // 5. Update the DOM displays
+            document.getElementById('incomeDisplay').innerText = currentTotalIncome.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('expenseDisplay').innerText = currentTotalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            
+            // Push the *yearly* math to the investment display
+            document.getElementById('investmentDisplay').innerText = yearlyInvestments.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             
             const surplusDisplay = document.getElementById('surplusDisplay');
-            surplusDisplay.innerText = '$' + surplus.toLocaleString();
+            surplusDisplay.innerText = '$' + surplus.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             
-            // Turn the surplus red if expenses exceed income
+            // Turn the surplus red if total obligations exceed income
             if (surplus < 0) {
                 surplusDisplay.style.color = '#d93025';
             } else {
@@ -141,5 +210,4 @@
         // Run the math once when the page initially loads
         window.onload = calculateTotals;
     </script>
-</body>
 </html>

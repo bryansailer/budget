@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  budget-dashboard:
+    build: .
+    container_name: zero-based-budget
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    volumes:
+      # This saves the database outside the container so data survives updates
+      - budget_data:/app/data
+    environment:
+      - TZ=America/Indiana/Indianapolis # Keeps logs matched to your local time
+
+volumes:
+  budget_data:

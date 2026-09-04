@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Settings</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #f8f9fa; margin: 0; padding: 40px 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+        .nav-btn { display: inline-block; background-color: #1a73e8; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-bottom: 20px;}
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 40px;}
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f1f3f4; }
+        .delete-btn { background-color: #d93025; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; }
+        .form-panel { background-color: #f1f3f4; padding: 20px; border-radius: 8px; margin-bottom: 40px; }
+        .form-row { display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-end;}
+        .form-group { display: flex; flex-direction: column; flex: 1; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
+        .form-group input, .form-group select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .add-btn { background-color: #34a853; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; height: 35px;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="nav-btn">← Back to Dashboard</a>
+        <h2>Configure Budget Sliders</h2>
+        <p>Changes made here will immediately update your dashboard sliders and recalculate tracker targets.</p>
+
+        <div class="form-panel">
+            <h3>Add New Slider</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="new-type" onchange="toggleCategory()">
+                        <option value="budget">Expense / Debt</option>
+                        <option value="income">Income Source</option>
+                    </select>
+                </div>
+                <div class="form-group" id="cat-group">
+                    <label>Dashboard Section</label>
+                    <select id="new-category">
+                        <option value="housing">Housing & Utilities</option>
+                        <option value="debt">Debt Minimums</option>
+                        <option value="living">Daily Living</option>
+                        <option value="subs">Subscriptions</option>
+                        <option value="family">Family Obligations</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Label (e.g. Visa Card)</label>
+                    <input type="text" id="new-label" placeholder="Name">
+                </div>
+                <div class="form-group">
+                    <label>Default Value ($)</label>
+                    <input type="number" id="new-value" placeholder="100" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Slider Max ($)</label>
+                    <input type="number" id="new-max" placeholder="500" step="1">
+                </div>
+                <button class="add-btn" onclick="addConfig()">Add Item</button>
+            </div>
+            <div style="font-size: 0.9em; margin-top: -10px;">
+                <input type="checkbox" id="new-biweekly"> <label for="new-biweekly">This is a Bi-weekly Paycheck (Income Only)</label>
+            </div>
+        </div>
+
+        <h3>Current Configuration</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Section</th>
+                    <th>Label</th>
+                    <th>Default ($)</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td><strong style="text-transform: capitalize;">{{ item.type }}</strong></td>
+                    <td>{{ item.category | title }}</td>
+                    <td>{{ item.label }} {% if item.is_biweekly %}<em>(Biweekly)</em>{% endif %}</td>
+                    <td>${{ "%.2f"|format(item.amount) }}</td>
+                    <td><button class="delete-btn" onclick="deleteConfig({{ item.id }})">Delete</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function toggleCategory() {
+            const type = document.getElementById('new-type').value;
+            const catGroup = document.getElementById('cat-group');
+            catGroup.style.display = (type === 'income') ? 'none' : 'flex';
+        }
+
+        function addConfig() {
+            const type = document.getElementById('new-type').value;
+            const category = document.getElementById('new-category').value;
+            const label = document.getElementById('new-label').value;
+            const amount = document.getElementById('new-value').value;
+            const maxAmount = document.getElementById('new-max').value;
+            const isBiweekly = document.getElementById('new-biweekly').checked ? 1 : 0;
+
+            if(!label || !amount || !maxAmount) {
+                alert("Please fill out all text and number fields.");
+                return;
+            }
+
+            fetch('/api/add_config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: type,
+                    category: (type === 'budget') ? category : '',
+                    label: label,
+                    amount: amount,
+                    max_amount: maxAmount,
+                    is_biweekly: isBiweekly
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') window.location.reload();
+            });
+        }
+
+        function deleteConfig(id) {
+            if(confirm("Are you sure you want to remove this item from your dashboard?")) {
+                fetch('/api/delete_config/' + id, { method: 'DELETE' })
+                .then(res => res.json())
+                .then(data => {
+                    if(data.status === 'success') window.location.reload();
+                });
+            }
+        }
+    </script>
+</body>
+</html>

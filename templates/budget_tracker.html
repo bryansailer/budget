@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Tracker</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8f9fa; color: #202124; margin: 0; padding: 40px 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
+        
+        .btn-group { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .nav-btn { display: inline-block; background-color: #1a73e8; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .nav-btn:hover { background-color: #1557b0; }
+        .close-btn { background-color: #d93025; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; border: none; cursor: pointer;}
+        .close-btn:hover { background-color: #b3261e; }
+        
+        .header-panel { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e8eaed; padding-bottom: 20px; }
+        .table-section { margin-bottom: 40px; }
+        .table-section h3 { color: #1a73e8; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f1f3f4; }
+        .total-row { font-weight: bold; background-color: #e8eaed; }
+        .total-row td { text-align: right; }
+        .total-amount { text-align: left !important; font-size: 1.1em; transition: color 0.3s; }
+        .target-subtext { font-size: 0.8em; color: #5f6368; font-weight: normal; }
+
+        .input-row input { width: 90%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        .add-btn { background-color: #34a853; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; width: 100%;}
+        .add-btn:hover { background-color: #2b8c46; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="btn-group">
+            <a href="/" class="nav-btn">← Back to Dashboard</a>
+            <button class="close-btn" onclick="closeMonth()">Close Month & Archive</button>
+        </div>
+        
+        <div class="header-panel">
+            <h2>Daily Spending Tracker</h2>
+            <p style="color: #5f6368;">Log your transactions below. Values will turn <strong style="color:#d93025">red</strong> if you exceed your target.</p>
+        </div>
+
+        <div id="tables-container"></div>
+    </div>
+
+    <script>
+        // Receive the budget targets from Python
+        const trackerTargets = {{ tracker_targets | tojson | safe }};
+        const existingData = {{ existing_data | tojson | safe }};
+        
+        const categories = [
+            { id: 'utilities', title: 'Utilities' },
+            { id: 'debt', title: 'Other Debt' },
+            { id: 'living', title: 'Living Expenses' },
+            { id: 'misc', title: 'Misc' }
+        ];
+
+        const container = document.getElementById('tables-container');
+
+        // Generate the HTML for each table dynamically
+        categories.forEach(cat => {
+            const section = document.createElement('div');
+            section.className = 'table-section';
+            
+            let existingRowsHTML = '';
+            
+            // Map out previously saved rows
+            if (existingData[cat.id]) {
+                existingData[cat.id].forEach(item => {
+                    existingRowsHTML += `
+                        <tr>
+                            <td>${item.date}</td>
+                            <td>${item.description}</td>
+                            <td class="${cat.id}-val">$${parseFloat(item.amount).toFixed(2)}</td>
+                            <td>✔ Saved</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            section.innerHTML = `
+                <h3>${cat.title}</h3>
+                <table id="${cat.id}-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">Date</th>
+                            <th style="width: 50%;">Description</th>
+                            <th style="width: 20%;">Amount ($)</th>
+                            <th style="width: 10%;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="${cat.id}-body">
+                        ${existingRowsHTML}
+                    </tbody>
+                    <tbody>
+                        <tr class="input-row">
+                            <td><input type="date" id="${cat.id}-date"></td>
+                            <td><input type="text" id="${cat.id}-desc" placeholder="e.g., Schnucks, Amazon..."></td>
+                            <td><input type="number" id="${cat.id}-amt" placeholder="0.00" step="0.01" min="0"></td>
+                            <td><button class="add-btn" onclick="addEntry('${cat.id}')">Save</button></td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="2">Total ${cat.title}:</td>
+                            <td colspan="2" class="total-amount" id="${cat.id}-total">
+                                $0.00 <span class="target-subtext">/ $${trackerTargets[cat.id].toFixed(2)}</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+            container.appendChild(section);
+            
+            // Run the math initially to color code existing data
+            updateTotal(cat.id);
+        });
+
+        // Add a new entry to the database
+        function addEntry(categoryId) {
+            const dateInput = document.getElementById(categoryId + '-date');
+            const descInput = document.getElementById(categoryId + '-desc');
+            const amtInput = document.getElementById(categoryId + '-amt');
+
+            const date = dateInput.value;
+            const desc = descInput.value;
+            const amount = parseFloat(amtInput.value);
+
+            if (!date || !desc || isNaN(amount)) {
+                alert("Please fill in the Date, Description, and a valid Amount.");
+                return;
+            }
+
+            fetch('/add_transaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: categoryId, date: date, description: desc, amount: amount })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const tbody = document.getElementById(categoryId + '-body');
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${date}</td>
+                        <td>${desc}</td>
+                        <td class="${categoryId}-val">$${amount.toFixed(2)}</td>
+                        <td>✔ Saved</td>
+                    `;
+                    tbody.appendChild(row);
+                    updateTotal(categoryId);
+                    dateInput.value = ''; descInput.value = ''; amtInput.value = '';
+                }
+            })
+            .catch(error => { console.error(error); alert("Database error."); });
+        }
+
+        // Recalculate totals and check against budget limits
+        function updateTotal(categoryId) {
+            const amountCells = document.querySelectorAll(`.${categoryId}-val`);
+            let total = 0;
+            
+            amountCells.forEach(cell => {
+                total += parseFloat(cell.innerText.replace('$', ''));
+            });
+
+            const totalDisplay = document.getElementById(categoryId + '-total');
+            const target = trackerTargets[categoryId];
+            
+            // Rebuild the HTML with the updated total
+            totalDisplay.innerHTML = `$${total.toFixed(2)} <span class="target-subtext">/ $${target.toFixed(2)}</span>`;
+            
+            // Apply color coding
+            if (total > target) {
+                totalDisplay.style.color = '#d93025'; // Red if over budget
+            } else {
+                totalDisplay.style.color = '#34a853'; // Green if on/under budget
+            }
+        }
+
+        // Close the month function
+        function closeMonth() {
+            if(confirm("Are you sure you want to close this month? This will archive all current transactions and reset the tracker for a new month.")) {
+                fetch('/close_month', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Refresh the page so the archived data disappears
+                        window.location.reload(); 
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
