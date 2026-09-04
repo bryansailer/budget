@@ -11,7 +11,7 @@ services:
       # This saves the database outside the container so data survives updates
       - budget_data:/app/data
     environment:
-      - TZ=America/Indiana/Indianapolis # Keeps logs matched to your local time
+      - TZ=America/Chicago # Update this to your local timezone
 
 volumes:
   budget_data:
