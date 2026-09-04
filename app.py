@@ -68,36 +68,29 @@ def init_db():
     if not conn.execute('SELECT 1 FROM config_items LIMIT 1').fetchone():
         seed_data = [
             # Income
-            ('income', '', 'pension', 'Pension', 2943.35, 4000, 0),
-            ('income', '', 'va_disability', 'VA Disability', 2698.02, 5000, 0),
-            ('income', '', 'optomi_paycheck', 'Optomi Paycheck', 3359.14, 4000, 1),
+            ('income', '', 'paycheck_1', 'Primary Paycheck', 0, 5000, 1),
+            ('income', '', 'paycheck_2', 'Secondary Income', 0, 3000, 0),
             # Investments
-            ('investment', '', 'investment_1', 'Investment', 600, 1000, 0),
+            ('investment', '', 'savings', 'General Savings', 0, 1000, 0),
             # Housing & Utilities
-            ('budget', 'housing', 'mortgage', 'Mortgage', 1267, 2500, 0),
-            ('budget', 'housing', 'utilities', 'Electric & Water', 750, 1500, 0),
-            ('budget', 'housing', 'comms', 'Phone & Internet', 408, 800, 0),
-            ('budget', 'housing', 'insurance', 'Home/Auto Insurance', 347, 800, 0),
-            ('budget', 'housing', 'life_ins', 'Life Insurance', 106, 300, 0),
+            ('budget', 'housing', 'rent_mortgage', 'Rent / Mortgage', 0, 3000, 0),
+            ('budget', 'housing', 'phone', 'Phone', 0, 200, 0),
+            ('budget', 'housing', 'internet', 'Internet', 0, 200, 0),
+            ('budget', 'housing', 'electricity', 'Electricity', 0, 300, 0),
+            ('budget', 'housing', 'water', 'Water', 0, 200, 0),
+            ('budget', 'housing', 'gas', 'Gas', 0, 200, 0),
             # Family
-            ('budget', 'family', 'college', "Hannah's College Transfer", 900, 2000, 0),
+            ('budget', 'family', 'childcare', 'Childcare', 0, 1000, 0),
             # Debt
-            ('budget', 'debt', 'auto', 'Auto Loans', 1419, 2500, 0),
-            ('budget', 'debt', 'bnpl', 'Affirm', 664, 1000, 0),
-            ('budget', 'debt', 'Microf', 'Microf', 501, 600, 0),
-            ('budget', 'debt', 'upstart', 'Upstart', 70, 100, 0),
-            ('budget', 'debt', 'cc', 'Credit Cards', 392, 1000, 0),
-            ('budget', 'debt', 'regional', 'Regional Finance', 299, 800, 0),
-            ('budget', 'debt', 'spectrum', 'Spectrum Payoff', 218, 500, 0),
+            ('budget', 'debt', 'auto_loan', 'Auto Loan', 0, 1000, 0),
+            ('budget', 'debt', 'credit_card', 'Credit Card Minimum', 0, 1000, 0),
+            ('budget', 'debt', 'student_loan', 'Student Loan', 0, 1000, 0),
+            # Subscriptions
+            ('budget', 'subs', 'netflix', 'Netflix', 0, 20, 0),
+            ('budget', 'subs', 'spotify', 'Spotify', 0, 10, 0),
             # Living
-            ('budget', 'living', 'groceries', 'Groceries', 600, 1500, 0),
-            ('budget', 'living', 'misc_shop', 'Household & Misc', 350, 1000, 0),
-            ('budget', 'living', 'dining', 'Dining Out', 300, 1000, 0),
-            ('budget', 'living', 'gas', 'Gas & Auto Fuel', 250, 800, 0),
-            # Subs
-            ('budget', 'subs', 'hulu', 'Hulu', 100, 200, 0),
-            ('budget', 'subs', 'streaming', 'Streaming Services', 86, 200, 0),
-            ('budget', 'subs', 'cloud', 'Cloud & Subscriptions', 87, 200, 0)
+            ('budget', 'living', 'groceries', 'Groceries', 0, 1500, 0),
+            ('budget', 'living', 'gas', 'Gas / Transit', 0, 500, 0),
         ]
         cursor = conn.cursor()
         cursor.executemany('''

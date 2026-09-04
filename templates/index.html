@@ -142,7 +142,6 @@
         </div>
         {% endfor %}
     </div>
-
     <script>
         // Triggers every time ANY slider (income, investment, or expense) is moved
         function updateValue(slider) {
@@ -161,8 +160,8 @@
                 
                 // Dynamically apply biweekly math to ANY slider flagged in the database
                 if (slider.classList.contains('is-biweekly')) {
-                sliderValue = sliderValue * (26 / 12);
-            }
+                    sliderValue = sliderValue * (26 / 12);
+                }
                 
                 currentTotalIncome += sliderValue;
             });
@@ -186,14 +185,15 @@
                 currentTotalExpenses += parseFloat(slider.value);
             });
 
-            // 4. Calculate the New Surplus (Monthly Income minus Monthly Expenses and Monthly Investments)
+            // 4. Calculate the New Surplus 
             const surplus = currentTotalIncome - currentTotalExpenses - currentTotalInvestments;
             
-            // 5. Update the DOM displays
-            document.getElementById('incomeDisplay').innerText = currentTotalIncome.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            document.getElementById('expenseDisplay').innerText = currentTotalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            // --- NEW LOGIC: Calculate Available Income (Income minus Investments) ---
+            const availableIncome = currentTotalIncome - currentTotalInvestments;
             
-            // Push the *yearly* math to the investment display
+            // 5. Update the DOM displays
+            document.getElementById('incomeDisplay').innerText = availableIncome.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('expenseDisplay').innerText = currentTotalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             document.getElementById('investmentDisplay').innerText = yearlyInvestments.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             
             const surplusDisplay = document.getElementById('surplusDisplay');
@@ -210,4 +210,5 @@
         // Run the math once when the page initially loads
         window.onload = calculateTotals;
     </script>
+    
 </html>
